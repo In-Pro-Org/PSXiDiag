@@ -1,4 +1,4 @@
-#Requires -Modules PsNetTools, PSHTML, Pode, Pode.Web, mySQLite
+#Requires -Modules PsNetTools, PSHTML, Pode, @{ ModuleName="Pode.Web"; RequiredVersion="0.8.3" }, mySQLite
 <#
 .SYNOPSIS
     Start Pode server
@@ -19,16 +19,17 @@ param ()
 function Test-IsElevated {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [OSType]$OS
     )
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ Begin   ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
-    if($OS -eq [OSType]::Windows){
+    if ($OS -eq [OSType]::Windows) {
         $user = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $ret  = (New-Object Security.Principal.WindowsPrincipal $user).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-    }elseif($OS -eq [OSType]::Mac){
+        $ret = (New-Object Security.Principal.WindowsPrincipal $user).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
+    }
+    elseif ($OS -eq [OSType]::Mac) {
         $ret = ((id -u) -eq 0)
     }
 
@@ -37,30 +38,34 @@ function Test-IsElevated {
     return $ret
 }
 
-function Set-HostEntry{
+function Set-HostEntry {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [String] $Name,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [Switch]$Elevated
     )
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ Begin   ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 
     $PsNetHostsTable = Get-PsNetHostsTable
-    if($PsNetHostsTable.ComputerName -contains $Name){
+
+    if ($PsNetHostsTable.ComputerName -contains $Name) {
         $ret = $true
-    }else{
-        if($Elevated) {
+    }
+    else {
+        if ($Elevated) {
             Write-Host "Try to add $($Name) to hosts-file" -ForegroundColor Green
             Add-PsNetHostsEntry -IPAddress 127.0.0.1 -Hostname $($Name) -FullyQualifiedName "$($Name).local"
-        }else{
+        }
+        else {
             Write-Host "Try to add $($Name) to hosts-file need elevated Privileges" -ForegroundColor Yellow
             $ret = $false
         }
     }
+
     Write-Verbose $(($PsNetHostsTable | Where-Object ComputerName -match $($Name)) | Out-String)
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
@@ -86,29 +91,38 @@ function Set-PodeRoutes {
     $navDropdown = New-PodeWebNavDropdown -Name 'github' -Icon 'github' -Items @(
         New-PodeWebNavLink -Name 'Badgerati' -Url 'https://github.com/Badgerati/Pode.Web' -Icon 'github' -NewTab
         New-PodeWebNavLink -Name 'tinuwalther' -Url 'https://github.com/tinuwalther' -Icon 'github' -NewTab
+        New-PodeWebNavLink -Name 'Thamielis' -Url 'https://github.com/Thamielis' -Icon 'github' -NewTab
+        New-PodeWebNavLink -Name 'In-Pro-Org' -Url 'https://github.com/In-Pro-Org' -Icon 'github' -NewTab
+        New-PodeWebNavLink -Name 'KOWThamielis' -Url 'https://github.com/KOWThamielis' -Icon 'github' -NewTab
+        New-PodeWebNavLink -Name 'In-ProPSDev' -Url 'https://github.com/In-ProPSDev' -Icon 'github' -NewTab
+        New-PodeWebNavLink -Name 'In-Pro-Tutorials' -Url 'https://github.com/In-Pro-Tutorials' -Icon 'github' -NewTab
     )
+
     $navDiv = New-PodeWebNavDivider
     $navPodeWeb = New-PodeWebNavLink -Name 'Pode.Web' -Url 'https://badgerati.github.io/Pode.Web' -Icon 'help-circle-outline' -NewTab
     Set-PodeWebNavDefault -Items $navDropdown, $navDiv, $navPodeWeb
 
     # Add dynamic pages
-    $PodeRoot = $($PSScriptRoot).Replace('bin','pode')
-    foreach($item in (Get-ChildItem -Filter '*.ps1' -Path (Join-Path $PodeRoot -ChildPath 'pages'))){
+    $PodeRoot = $($PSScriptRoot).Replace('bin', 'pode')
+
+    foreach ($item in (Get-ChildItem -Filter '*.ps1' -Path (Join-Path $PodeRoot -ChildPath 'pages'))) {
         . "$($item.FullName)"
     }
+
     $ep = Add-PodeEndpoint -Address * -Port 5989 -Protocol Http -Hostname 'psxi' -PassThru
-    foreach($item in $ep.keys){
-        if($item -eq 'Url'){
+
+    foreach ($item in $ep.keys) {
+        if ($item -eq 'Url') {
             $global:epurl = $ep[$item]
         }
     }
-    
+
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 
 }
 
-function Invoke-FileWatcher{
+function Invoke-FileWatcher {
     <#
         Returns:
         - Changed
@@ -120,27 +134,27 @@ function Invoke-FileWatcher{
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ Begin   ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 
-    $WatchFolder = Join-Path $($PSScriptRoot).Replace('bin','pode') -ChildPath 'upload'
+    $WatchFolder = Join-Path $($PSScriptRoot).Replace('bin', 'pode') -ChildPath 'upload'
 
     Add-PodeFileWatcher -EventName Changed -Path $WatchFolder -ScriptBlock {
         # file name and path
         Write-Verbose "$($FileEvent.Name) -> $($FileEvent.Type) -> $($FileEvent.FullPath)" #| Out-Default
 
-        switch($FileEvent.Type){
+        switch ($FileEvent.Type) {
             'Changed' {
                 # Test if the extension is csv
-                if($FileEvent.Name -match '\.csv'){
-                    $DBRoot       = Join-Path $($PSScriptRoot).Replace('bin','pode') -ChildPath 'db'
-                    $DBFullPath   = Join-Path $DBRoot -ChildPath 'psxi.db'
-                    $TableName    = ($FileEvent.Name) -replace '.csv'
-                    if(Test-Path $DBFullPath){
-                        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                if ($FileEvent.Name -match '\.csv') {
+                    $DBRoot = Join-Path $($PSScriptRoot).Replace('bin', 'pode') -ChildPath 'db'
+                    $DBFullPath = Join-Path $DBRoot -ChildPath 'psxi.db'
+                    $TableName = ($FileEvent.Name) -replace '.csv'
+                    if (Test-Path $DBFullPath) {
+                        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                             "Database-Check: Database $DBFullPath already exists" | Out-PodeHost
                         }
 
                         # Read header from csv-file and set it as column-names to the table
                         $th = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
-                        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                             "Table header: $($th)" | Out-Default
                             "Table-Check: Ovewrite the Table $($TableName) if its already exists" | Out-PodeHost
                         }
@@ -148,27 +162,27 @@ function Invoke-FileWatcher{
                         # Create new empty table, replace if it exists
                         New-MySQLiteDBTable -Path $DBFullPath -TableName $TableName -ColumnNames @($th + 'Created') -Force
                         $th = $null
-                        
+
                         # Add ID as primary-key th the table
                         Invoke-MySQLiteQuery -Path $DBFullPath -query "ALTER TABLE $TableName ADD ID [INTEGER PRIMARY KEY];"
-                        
-                        switch -Regex ($TableName){
+
+                        switch -Regex ($TableName) {
                             '_SCVMHosts$' {
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Item received: $($FileEvent.FullPath)" | Out-PodeHost
                                     "Table-Check: Add content 'SCVMHosts' to the table $TableName" | Out-PodeHost
                                 }
 
                                 $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
-                                if($theader -match '"'){
+                                if ($theader -match '"') {
                                     $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';') -Replace '"'
                                 }
 
                                 # Create table for Notes
                                 $TableExists = Invoke-MySQLiteQuery -Path $DBFullPath -query "SELECT * FROM sqlite_master WHERE type = 'table' AND name like '$($TableName)Notes'"
-                                if([string]::IsNullOrEmpty($TableExists)){
-                                    Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE TABLE '$($TableName)Notes'(  
-                                        ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                                if ([string]::IsNullOrEmpty($TableExists)) {
+                                    Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE TABLE '$($TableName)Notes'(
+                                        ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                                         HostName TEXT,
                                         Notes TEXT
                                     )"
@@ -176,11 +190,11 @@ function Invoke-FileWatcher{
 
                                 # Create views
                                 $ViewExists = Invoke-MySQLiteQuery -Path $DBFullPath -query "SELECT * FROM sqlite_master WHERE type = 'view' AND name like 'view_$($TableName)'"
-                                if([string]::IsNullOrEmpty($ViewExists)){
+                                if ([string]::IsNullOrEmpty($ViewExists)) {
                                     Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE VIEW 'view_$($TableName)' AS
-                                    SELECT 
+                                    SELECT
                                         l.'ID',
-                                        l.'HostName', 
+                                        l.'HostName',
                                         l.'Version',
                                         l.'HyperVState',
                                         l.'PhysicalLocation',
@@ -189,7 +203,7 @@ function Invoke-FileWatcher{
                                         l.'VMMServer',
                                         l.'Cluster',
                                         l.'Created',
-                                        n.'Notes' 
+                                        n.'Notes'
                                     FROM '$($TableName)' AS l
                                     LEFT JOIN '$($TableName)Notes' AS n
                                     ON l.'HostName' = n.'HostName'"
@@ -197,7 +211,7 @@ function Invoke-FileWatcher{
 
                                 Update-SCVMHostTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName -TableHeader $theader
                                 #Invoke-PshtmlESXiDiagram -DBFile $($DBFullPath) -ScriptFile $(Join-Path $PSScriptRoot -ChildPath "New-PshtmlESXiDiag.ps1") -SqlTableName $TableName
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
                                 Remove-Item -Path $FileEvent.FullPath -Force
@@ -205,21 +219,21 @@ function Invoke-FileWatcher{
                             }
 
                             '_ESXiHosts$' {
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Item received: $($FileEvent.FullPath)" | Out-PodeHost
                                     "Table-Check: Add content 'ESXiHost' to the table $TableName" | Out-PodeHost
                                 }
 
                                 $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
-                                if($theader -match '"'){
+                                if ($theader -match '"') {
                                     $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';') -Replace '"'
                                 }
-                        
+
                                 # Create table for Notes
                                 $TableExists = Invoke-MySQLiteQuery -Path $DBFullPath -query "SELECT * FROM sqlite_master WHERE type = 'table' AND name like '$($TableName)Notes'"
-                                if([string]::IsNullOrEmpty($TableExists)){
-                                    Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE TABLE '$($TableName)Notes'(  
-                                        ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+                                if ([string]::IsNullOrEmpty($TableExists)) {
+                                    Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE TABLE '$($TableName)Notes'(
+                                        ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                                         HostName TEXT,
                                         Notes TEXT
                                     )"
@@ -227,11 +241,11 @@ function Invoke-FileWatcher{
 
                                 # Create views
                                 $ViewExists = Invoke-MySQLiteQuery -Path $DBFullPath -query "SELECT * FROM sqlite_master WHERE type = 'view' AND name like 'view_$($TableName)'"
-                                if([string]::IsNullOrEmpty($ViewExists)){
+                                if ([string]::IsNullOrEmpty($ViewExists)) {
                                     Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE VIEW 'view_$($TableName)' AS
-                                    SELECT 
+                                    SELECT
                                         l.'ID',
-                                        l.'HostName', 
+                                        l.'HostName',
                                         l.'Version',
                                         l.'ConnectionState',
                                         l.'PhysicalLocation',
@@ -240,7 +254,7 @@ function Invoke-FileWatcher{
                                         l.'vCenterServer',
                                         l.'Cluster',
                                         l.'Created',
-                                        n.'Notes' 
+                                        n.'Notes'
                                     FROM '$($TableName)' AS l
                                     LEFT JOIN '$($TableName)Notes' AS n
                                     ON l.'HostName' = n.'HostName'"
@@ -248,7 +262,7 @@ function Invoke-FileWatcher{
 
                                 Update-ESXiHostTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName -TableHeader $theader
                                 Invoke-PshtmlESXiDiagram -DBFile $($DBFullPath) -ScriptFile $(Join-Path $PSScriptRoot -ChildPath "New-PshtmlESXiDiag.ps1") -SqlTableName $TableName
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
                                 Remove-Item -Path $FileEvent.FullPath -Force
@@ -256,18 +270,18 @@ function Invoke-FileWatcher{
                             }
 
                             '_Datastores$' {
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Item received: $($FileEvent.FullPath)" | Out-PodeHost
                                     "Table-Check: Add content 'Datastores' to the table $TableName" | Out-PodeHost
                                 }
 
                                 $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
-                                if($theader -match '"'){
+                                if ($theader -match '"') {
                                     $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';') -Replace '"'
                                 }
 
                                 Update-DatastoreTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName -TableHeader $theader
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
                                 Remove-Item -Path $FileEvent.FullPath -Force
@@ -275,18 +289,18 @@ function Invoke-FileWatcher{
                             }
 
                             '_Networks$' {
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Item received: $($FileEvent.FullPath)" | Out-PodeHost
                                     "Table-Check: Add content 'Networks' to the table $TableName" | Out-PodeHost
                                 }
 
                                 $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
-                                if($theader -match '"'){
+                                if ($theader -match '"') {
                                     $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';') -Replace '"'
                                 }
 
                                 Update-NetworkTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName -TableHeader $theader
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
                                 Remove-Item -Path $FileEvent.FullPath -Force
@@ -294,19 +308,20 @@ function Invoke-FileWatcher{
                             }
 
                             '_summary$' {
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Item received: $($FileEvent.FullPath)" | Out-PodeHost
                                     "Table-Check: Add content 'Summary' to the table $TableName" | Out-PodeHost
                                 }
                                 Update-SummaryTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName
-                                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+                                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
                                 Remove-Item -Path $FileEvent.FullPath -Force
                             }
                         }
 
-                    }else{
+                    }
+                    else {
                         "$DBFullPath not available" | Out-PodeHost
                     }
                 }
@@ -316,26 +331,36 @@ function Invoke-FileWatcher{
             }
         }
     }
-    
+
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
-function Update-SCVMHostTable{
+function Update-SCVMHostTable {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$DBFile,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$CSVFile,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [Object]$TableHeader,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$SqlTableName
     )
@@ -344,12 +369,12 @@ function Update-SCVMHostTable{
 
     # There is a problem, if the data in the csv has ""
     $data = Import-Csv -Delimiter ';' -Path $CSVFile.FullName -Encoding utf8
-    $data | foreach-object -begin { 
+    $data | foreach-object -begin {
         $i = 0
         $db = Open-MySQLiteDB $DBFile.FullName
-    } -process { 
+    } -process {
         $i ++
-        $SqlQuery = "Insert into $($SqlTableName) Values( 
+        $SqlQuery = "Insert into $($SqlTableName) Values(
             $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
         )"
         # $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
@@ -358,38 +383,40 @@ function Update-SCVMHostTable{
         #     '$($_.HostName)', '$($_.Version)', '$($_.Manufacturer)', '$($_.Model)', '$($_.vCenterServer)',
         #     '$($_.Cluster)', '$($_.PhysicalLocation)', '$($_.ConnectionState)', '$($_.Notes)', '$(Get-Date)', '$($i)'
         # )"
-        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
             $SqlQuery | Out-Default
         }
         Invoke-MySQLiteQuery -connection $db -keepalive -query $SqlQuery
-    } -end { 
+    } -end {
         Close-MySQLiteDB $db
     }
 
     #region add or merge Notes, Master is the Notes-Table
     $SCVMHosts = Invoke-MySQLiteQuery -Path $DBFile.FullName -Query "SELECT HostName, Notes FROM '$($SqlTableName)' WHERE Notes >''"
-    foreach($hvh in $SCVMHosts){
-        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+    foreach ($hvh in $SCVMHosts) {
+        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
             "$($SqlTableName): found Notes for $($hvh.HostName) = $($hvh.Notes)" | Out-Default
         }
         $SCVMHostsNotes = Invoke-MySQLiteQuery -Path $DBFile.FullName -Query "SELECT HostName, Notes FROM '$($SqlTableName)Notes' WHERE HostName = '$($hvh.HostName)'"
-        if([String]::IsNullOrEmpty($SCVMHostsNotes)){
-            if((Get-PodeConfig).DebugLevel -eq 'Info'){
+        if ([String]::IsNullOrEmpty($SCVMHostsNotes)) {
+            if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                 "$($SqlTableName)Notes: no Notes for $($hvh.HostName), insert into" | Out-Default
             }
             $InsertNotes = $($hvh.Notes).Trim()
             # No Notes found, insert into table
             $SqliteQuery = "INSERT INTO '$($SqlTableName)Notes' (HostName, Notes) VALUES ('$($hvh.HostName)', '$($InsertNotes)')"
             Invoke-MySQLiteQuery -Path $DBFile.FullName -Query $SqliteQuery
-        }else{
+        }
+        else {
             # Notes found for one or more Hosts
-            foreach($item in $SCVMHostsNotes){
-                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+            foreach ($item in $SCVMHostsNotes) {
+                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                     "$($SqlTableName)Notes: found Notes for $($item.HostName) = $($item.Notes), update" | Out-Default
                 }
-                if($($item.Notes) -match $($hvh.Notes)){
+                if ($($item.Notes) -match $($hvh.Notes)) {
                     $MergedNotes = $($item.Notes).Trim()
-                }else{
+                }
+                else {
                     $MergedNotes = $("$($item.Notes), from CSV: $($hvh.Notes)").Trim()
                 }
                 # Notes found, update table
@@ -403,22 +430,32 @@ function Update-SCVMHostTable{
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
-function Update-ESXiHostTable{
+function Update-ESXiHostTable {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$DBFile,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$CSVFile,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [Object]$TableHeader,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$SqlTableName
     )
@@ -427,12 +464,12 @@ function Update-ESXiHostTable{
 
     # There is a problem, if the data in the csv has ""
     $data = Import-Csv -Delimiter ';' -Path $CSVFile.FullName -Encoding utf8
-    $data | foreach-object -begin { 
+    $data | foreach-object -begin {
         $i = 0
         $db = Open-MySQLiteDB $DBFile.FullName
-    } -process { 
+    } -process {
         $i ++
-        $SqlQuery = "Insert into $($SqlTableName) Values( 
+        $SqlQuery = "Insert into $($SqlTableName) Values(
             $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
         )"
         # $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
@@ -441,38 +478,40 @@ function Update-ESXiHostTable{
         #     '$($_.HostName)', '$($_.Version)', '$($_.Manufacturer)', '$($_.Model)', '$($_.vCenterServer)',
         #     '$($_.Cluster)', '$($_.PhysicalLocation)', '$($_.ConnectionState)', '$($_.Notes)', '$(Get-Date)', '$($i)'
         # )"
-        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
             $SqlQuery | Out-Default
         }
         Invoke-MySQLiteQuery -connection $db -keepalive -query $SqlQuery
-    } -end { 
+    } -end {
         Close-MySQLiteDB $db
     }
 
     #region add or merge Notes, Master is the Notes-Table
     $ESXiHosts = Invoke-MySQLiteQuery -Path $DBFile.FullName -Query "SELECT HostName, Notes FROM '$($SqlTableName)' WHERE Notes >''"
-    foreach($esxi in $ESXiHosts){
-        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+    foreach ($esxi in $ESXiHosts) {
+        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
             "$($SqlTableName): found Notes for $($esxi.HostName) = $($esxi.Notes)" | Out-Default
         }
         $ESXiHostsNotes = Invoke-MySQLiteQuery -Path $DBFile.FullName -Query "SELECT HostName, Notes FROM '$($SqlTableName)Notes' WHERE HostName = '$($esxi.HostName)'"
-        if([String]::IsNullOrEmpty($ESXiHostsNotes)){
-            if((Get-PodeConfig).DebugLevel -eq 'Info'){
+        if ([String]::IsNullOrEmpty($ESXiHostsNotes)) {
+            if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                 "$($SqlTableName)Notes: no Notes for $($esxi.HostName), insert into" | Out-Default
             }
             $InsertNotes = $($esxi.Notes).Trim()
             # No Notes found, insert into table
             $SqliteQuery = "INSERT INTO '$($SqlTableName)Notes' (HostName, Notes) VALUES ('$($esxi.HostName)', '$($InsertNotes)')"
             Invoke-MySQLiteQuery -Path $DBFile.FullName -Query $SqliteQuery
-        }else{
+        }
+        else {
             # Notes found for one or more Hosts
-            foreach($item in $ESXiHostsNotes){
-                if((Get-PodeConfig).DebugLevel -eq 'Info'){
+            foreach ($item in $ESXiHostsNotes) {
+                if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                     "$($SqlTableName)Notes: found Notes for $($item.HostName) = $($item.Notes), update" | Out-Default
                 }
-                if($($item.Notes) -match $($esxi.Notes)){
+                if ($($item.Notes) -match $($esxi.Notes)) {
                     $MergedNotes = $($item.Notes).Trim()
-                }else{
+                }
+                else {
                     $MergedNotes = $("$($item.Notes), from CSV: $($esxi.Notes)").Trim()
                 }
                 # Notes found, update table
@@ -486,22 +525,32 @@ function Update-ESXiHostTable{
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
-function Update-DatastoreTable{
+function Update-DatastoreTable {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$DBFile,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$CSVFile,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [Object]$TableHeader,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$SqlTableName
     )
@@ -510,12 +559,12 @@ function Update-DatastoreTable{
 
     # There is a problem, if the data in the csv has ""
     $data = Import-Csv -Delimiter ';' -Path $CSVFile.FullName -Encoding utf8
-    $data | foreach-object -begin { 
+    $data | foreach-object -begin {
         $i = 0
         $db = Open-MySQLiteDB $DBFile.FullName
-    } -process { 
+    } -process {
         $i ++
-        $SqlQuery = "Insert into $($SqlTableName) Values( 
+        $SqlQuery = "Insert into $($SqlTableName) Values(
             $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
         )"
         # $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
@@ -524,11 +573,11 @@ function Update-DatastoreTable{
         #     '$($_.HostName)', '$($_.Version)', '$($_.Manufacturer)', '$($_.Model)', '$($_.vCenterServer)',
         #     '$($_.Cluster)', '$($_.PhysicalLocation)', '$($_.ConnectionState)', '$($_.Notes)', '$(Get-Date)', '$($i)'
         # )"
-        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
             $SqlQuery | Out-Default
         }
         Invoke-MySQLiteQuery -connection $db -keepalive -query $SqlQuery
-    } -end { 
+    } -end {
         Close-MySQLiteDB $db
     }
 
@@ -538,22 +587,32 @@ function Update-DatastoreTable{
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
-function Update-NetworkTable{
+function Update-NetworkTable {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$DBFile,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$CSVFile,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [Object]$TableHeader,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$SqlTableName
     )
@@ -562,12 +621,12 @@ function Update-NetworkTable{
 
     # There is a problem, if the data in the csv has ""
     $data = Import-Csv -Delimiter ';' -Path $CSVFile.FullName -Encoding utf8
-    $data | foreach-object -begin { 
+    $data | foreach-object -begin {
         $i = 0
         $db = Open-MySQLiteDB $DBFile.FullName
-    } -process { 
+    } -process {
         $i ++
-        $SqlQuery = "Insert into $($SqlTableName) Values( 
+        $SqlQuery = "Insert into $($SqlTableName) Values(
             $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
         )"
         # $(for($h = 0; $h -lt $TableHeader.length; $h++){ "'" + $($_.$($TableHeader[$h])) + "'" + ',' }) '$(Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff')', '$($i)'
@@ -576,11 +635,11 @@ function Update-NetworkTable{
         #     '$($_.HostName)', '$($_.Version)', '$($_.Manufacturer)', '$($_.Model)', '$($_.vCenterServer)',
         #     '$($_.Cluster)', '$($_.PhysicalLocation)', '$($_.ConnectionState)', '$($_.Notes)', '$(Get-Date)', '$($i)'
         # )"
-        if((Get-PodeConfig).DebugLevel -eq 'Info'){
+        if ((Get-PodeConfig).DebugLevel -eq 'Info') {
             $SqlQuery | Out-Default
         }
         Invoke-MySQLiteQuery -connection $db -keepalive -query $SqlQuery
-    } -end { 
+    } -end {
         Close-MySQLiteDB $db
     }
 
@@ -590,18 +649,28 @@ function Update-NetworkTable{
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
-function Update-SummaryTable{
+function Update-SummaryTable {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$DBFile,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$CSVFile,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$SqlTableName
     )
@@ -609,10 +678,10 @@ function Update-SummaryTable{
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ Begin   ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
     $data = Import-Csv -Delimiter ';' -Path $CSVFile.FullName -Encoding utf8
     Write-Verbose "($data | Select-Object -First 1 | Format-Table | Out-String)"
-    $data | foreach-object -begin { 
+    $data | foreach-object -begin {
         $i = 0
         $db = Open-MySQLiteDB $DBFile.FullName
-    } -process { 
+    } -process {
         $i ++
         $SqlQuery = "Insert into $($SqlTableName) Values(
             '$($_.VIServer)',
@@ -622,47 +691,57 @@ function Update-SummaryTable{
             '$($i)'
         )"
         Invoke-MySQLiteQuery -connection $db -keepalive -query $SqlQuery
-    } -end { 
+    } -end {
         Close-MySQLiteDB $db
     }
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
-function New-SqlLiteDB{
+function New-SqlLiteDB {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.IO.FileInfo]$DBFile
     )
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ Begin   ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
-    if(-not(Test-Path $DBFile.FullName)){
+    if (-not(Test-Path $DBFile.FullName)) {
         Write-Verbose "Create new database $($DBFile.BaseName)" #| Out-Default
         New-MySQLiteDB $DBFile.FullName -Comment "This is the PSXi Database" -PassThru -force
     }
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
-function Invoke-PshtmlESXiDiagram{
+function Invoke-PshtmlESXiDiagram {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$DBFile,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({ if(Test-Path -Path $($_) ){$true}else{Throw "File '$($_)' not found"} })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ if (Test-Path -Path $($_) ) {
+                    $true
+                }
+                else {
+                    Throw "File '$($_)' not found"
+                } })]
         [System.IO.FileInfo]$ScriptFile,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [string]$SqlTableName
     )
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ Begin   ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
     $InstallArgs = @{}
-    $InstallArgs.FilePath     = "pwsh.exe"
+    $InstallArgs.FilePath = "pwsh.exe"
     $InstallArgs.ArgumentList = @()
     $InstallArgs.ArgumentList += "-file $($ScriptFile.FullName) -DBFile $DBFile -SqlTableName $SqlTableName"
     Start-Process @InstallArgs -Wait -NoNewWindow
@@ -678,51 +757,143 @@ enum OSType {
     Windows
 }
 
-if($PSVersionTable.PSVersion.Major -lt 6){
+if ($PSVersionTable.PSVersion.Major -lt 6) {
     $CurrentOS = [OSType]::Windows
-}else{
-    if($IsMacOS)  {$CurrentOS = [OSType]::Mac}
-    if($IsLinux)  {$CurrentOS = [OSType]::Linux}
-    if($IsWindows){$CurrentOS = [OSType]::Windows}
 }
+else {
+    if ($IsMacOS) {
+        $CurrentOS = [OSType]::Mac
+    }
+
+    if ($IsLinux) {
+        $CurrentOS = [OSType]::Linux
+    }
+
+    if ($IsWindows) {
+        $CurrentOS = [OSType]::Windows
+    }
+}
+
+# Set ScriptRoot.
+$ScriptRoot = if ($PSScriptRoot) {
+    #$PSScriptRoot
+    $($PSScriptRoot).Replace('bin', 'pode')
+}
+elseif ($Host.Name -eq 'Visual Studio Code Host') {
+    (Split-Path $psEditor.GetEditorContext().CurrentFile.Path).Replace('bin', 'pode')
+}
+else {
+    ('./').Replace('bin', 'pode')
+}
+
+$ScriptRoot
+
+$ModulesPath = Join-Path -Path $ScriptRoot -ChildPath 'src'
+$Modules = Get-ChildItem -Path $ModulesPath -Filter '*.psm1' -Recurse -File
+$Modules | ForEach-Object {
+    Import-Module $_.FullName -Force
+}
+
+Test-PortAvailable -ServerPath $ScriptRoot
+
 #endregion
 
 #region Pode server
-if($CurrentOS -eq [OSType]::Windows){
-    if(Test-IsElevated -OS $CurrentOS) {
+if ($CurrentOS -eq [OSType]::Windows) {
+
+    if (Test-IsElevated -OS $CurrentOS) {
         $null = Set-HostEntry -Name 'psxi' -Elevated
+
         Start-PodeServer {
 
-            Write-Host "Running on Windows with elevated Privileges since $(Get-Date)" -ForegroundColor Red
+            $Modules | ForEach-Object {
+                Export-PodeModule -Name $_.BaseName
+            }
+
+            Add-PodeScopedVariable -Name 'Config' -ScriptBlock {
+                param($ScriptBlock, $SessionState, $GetPattern, $SetPattern)
+                $strScriptBlock = "$($ScriptBlock)"
+                $template = "(Get-PodeConfig).'{{name}}'"
+
+                # allows "$port = $config:port" instead of "$port = (Get-PodeConfig).port"
+                while ($strScriptBlock -imatch $GetPattern) {
+                    $getReplace = $template.Replace('{{name}}', $Matches['name'])
+                    $strScriptBlock = $strScriptBlock.Replace($Matches['full'], "($($getReplace))")
+                }
+
+                return [scriptblock]::Create($strScriptBlock)
+            }
+
+
+            #region    get config
+            $Config = Get-PodeConfig
+
+            #endregion get config
+
+            #region    setup logging
+
+            # Enable Loggin to Terminal
+            #New-PodeLoggingMethod -Path .\logs -Name "PodeWebServer.log" | Enable-PodeErrorLogging
+            #New-PodeLoggingMethod -Terminal | Enable-PodeErrorLogging
+
+            $LogsPath = Join-Path -Path $ScriptRoot -ChildPath $Config.Logging.Path
+
+            New-PodeLoggingMethod -File -Path $LogsPath -Name 'requests' | Enable-PodeRequestLogging
+            New-PodeLoggingMethod -File -Path $LogsPath -Name 'pshelpviewer' -MaxDays 1 -MaxSize 5MB
+
+            if ($Config.Podex.Debug) {
+                #New-PodeLoggingMethod -Terminal | Enable-PodeErrorLogging -Levels *
+                New-PodeLoggingMethod -File -Path $LogsPath -Name 'errors' -MaxDays 1 -MaxSize 5MB | Enable-PodeErrorLogging
+            }
+            else {
+                New-PodeLoggingMethod -File -Path $LogsPath -Name 'errors' -MaxDays 1 -MaxSize 5MB | Enable-PodeErrorLogging
+            }
+            #endregion setup logging
+
+
+            #Write-Host "Running on Windows with elevated Privileges since $(Get-Date)" -ForegroundColor Red
             # Get-PodeConfig | Out-Default
 
             Use-PodeWebTemplates -Title "$((Get-PodeConfig).PSXi.AppName) v$((Get-PodeConfig).PSXi.Version)" -Theme Dark -NoPageFilter #-HideSidebar
-            New-PodeLoggingMethod -File -Name 'requests' -MaxDays 4 | Enable-PodeRequestLogging
-            New-PodeLoggingMethod -Terminal | Enable-PodeErrorLogging
-        
+            #New-PodeLoggingMethod -File -Name 'requests' -MaxDays 4 | Enable-PodeRequestLogging
+            #New-PodeLoggingMethod -Terminal | Enable-PodeErrorLogging
+
             # Initialize new SQLite database
-            $DBRoot       = Join-Path $($PSScriptRoot).Replace('bin','pode') -ChildPath 'db'
-            $DBFullPath   = Join-Path $DBRoot -ChildPath 'psxi.db'
+            $DBRoot = Join-Path $($PSScriptRoot).Replace('bin', 'pode') -ChildPath 'db'
+            $DBFullPath = Join-Path $DBRoot -ChildPath 'psxi.db'
             New-SqlLiteDB -DBFile $DBFullPath
-            
+
             # Start FileWatcher for /pode/upload
             Invoke-FileWatcher
 
             # Set pode routes for web-sites
             Set-PodeRoutes
 
-            Write-Host "Press Ctrl. + C to terminate the Pode server" -ForegroundColor Yellow
+            #Write-Host "Press Ctrl. + C to terminate the Pode server" -ForegroundColor Yellow
 
-        } -RootPath $($PSScriptRoot).Replace('bin','pode')
-    }else{
+            if ($Config.Podex.Debug) {
+                $Routes = Get-PodeRoute | Sort-Object -Unique -Property Path, Method
+
+                $Routes | ForEach-Object {
+                    Write-FormattedLog -tag 'routes' -log "$($_.Method.PadRight(8).ToUpper()) -> $($_.Path.PadRight(40))"
+                }
+            }
+
+        } -RootPath $($PSScriptRoot).Replace('bin', 'pode')
+
+    }
+    else {
         Write-Host "Running on Windows and start new session with elevated Privileges" -ForegroundColor Green
-        if($PSVersionTable.PSVersion.Major -lt 6){
+
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
             Start-Process "$psHome\powershell.exe" -Verb Runas -WorkingDirectory $PSScriptRoot -ArgumentList $($MyInvocation.MyCommand.Name)
-        }else{
+        }
+        else {
             Start-Process "$psHome\pwsh.exe" -Verb Runas -WorkingDirectory $PSScriptRoot -ArgumentList $($MyInvocation.MyCommand.Name)
         }
     }
-}else{
+}
+else {
     # Start-PodeServer {
     #     if(Test-IsElevated -OS $CurrentOS) {
     #         $IsRoot = 'with elevated Privileges'
@@ -736,7 +907,7 @@ if($CurrentOS -eq [OSType]::Windows){
 
     #     Invoke-FileWatcher
     #     Set-PodeRoutes
-    
+
     # } -RootPath $($PSScriptRoot).Replace('bin','pode')
     "Not supported OS" | Out-Default
 }

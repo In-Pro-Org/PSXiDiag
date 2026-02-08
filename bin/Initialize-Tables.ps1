@@ -10,6 +10,7 @@ $Files = @(
     'classic_Datastores'
     # 'cloud_Networks'
 )
+
 foreach($file in $Files){
     $Source  = Join-Path -Path $Data -ChildPath "$file.csv"
     $Target  = Join-Path -Path $Upload -ChildPath "$file.csv"
