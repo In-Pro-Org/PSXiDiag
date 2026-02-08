@@ -1,4 +1,18 @@
 @{
+    Server = @{
+        AutoImport = @{
+            Modules = @{
+                Enable     = $true
+                ExportOnly = $true
+            }
+            Snapins = @{
+                Enable = $false
+            }
+            # Functions = @{
+            #     Enable = $true
+            # }
+        }
+    }
     Web = @{
         Static = @{
             Cache = @{
@@ -8,6 +22,12 @@
     }
     DebugLevel  = 'Info'
     PSModules   = 'PSHTML', 'mySQLite', 'Pode', 'Pode.Web'
+    Modules = @(
+        @{ ModuleName = 'Pode'; RequiredVersion = '2.12.1' }
+        @{ ModuleName = 'Pode.Web'; RequiredVersion = '0.8.3' }
+        @{ ModuleName = 'PSHTML'; RequiredVersion = '0.8.2' }
+        @{ ModuleName = 'mySQLite'; RequiredVersion = '1.0.0' }
+    )
     PSXi = @{
         AppName = 'PSXi App'
         Version = '1.1.6'
@@ -15,8 +35,8 @@
         Group2  = 'Cloud'
         Group3  = 'Hyper-V'
         Tables  = @(
-            'classic_summary' 
-            'cloud_summary' 
+            'classic_summary'
+            'cloud_summary'
             'classic_ESXiHosts'
             'cloud_ESXiHosts'
             'classic_ESXiHostsNotes'
@@ -26,8 +46,8 @@
             'hyperv_SCVMHosts'
         )
         Views = @(
-            'view_classic_ESXiHosts' 
-            'view_cloud_ESXiHosts' 
+            'view_classic_ESXiHosts'
+            'view_cloud_ESXiHosts'
             'view_hyperv_SCVMHosts'
         )
         # VMware
@@ -74,5 +94,27 @@
             'HyperVState'
             'Notes'
         )
+    }
+    PodeCfg    = @{
+        HttpPort       = 5989
+        HttpUrl        = 'localhost'
+        CertThumbprint = ''
+        HttpsEnabled   = $false
+    }
+    Cache      = @{
+        Name               = 'PXFileCache'
+        FilePath           = './px-cache.json'
+        SQL                = 'PXSQLCache'
+        ModulesTTLSeconds  = 30
+        CommandsTTLSeconds = 300
+        HelpTTLSeconds     = 86400
+    }
+    Podex      = @{
+        Debug        = $true
+        DatabaseType = 'SQLite'
+        DBFile       = './podex.db'
+    }
+    Logging    = @{
+        Path = ".logs"
     }
 }
