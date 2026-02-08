@@ -4,25 +4,31 @@
 Import-PodeWebStylesheet -Url 'psxi.css'
 
 $GroupName = (Get-PodeConfig).PSXi.Group1
-$PageName  = "2. $($GroupName) ESXi Datastores"
+$PageName = "2. $($GroupName) ESXi Datastores"
 $PageTitle = "2. $($GroupName) ESXi Datastore Inventory"
 
 Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'server' -ArgumentList @($GroupName, $PageName, $PageTitle) -ScriptBlock {
     param($GroupName, $PageName, $PageTitle)
 
     #region module
-    if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
-        Install-Module -Name mySQLite -Force
-        $Error.Clear()
+    # if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
+    #     Install-Module -Name mySQLite -Force
+    #     $Error.Clear()
+    # }
+    if (-not(Get-Module -Name mySQLite)) {
+        Import-Module -Name mySQLite 
     }
-    if(-not(Get-Module -Name mySQLite)){ Import-Module -Name mySQLite }
     #endregion
-    
+
     #region Defaults
-    $PodeRoot            = $($PSScriptRoot).Replace('pages','db')
-    $global:PodeDB       = Join-Path $PodeRoot -ChildPath 'psxi.db'
-    $PSXiViews           = (Get-PodeConfig).PSXi.Tables
-    $SqlViewName         = switch -regex ($PSXiViews){ $GroupName { $_ } }
+    $PodeRoot = $($PSScriptRoot).Replace('pages', 'db')
+    $global:PodeDB = Join-Path $PodeRoot -ChildPath 'psxi.db'
+    $PSXiViews = (Get-PodeConfig).PSXi.Tables
+    $SqlViewName = switch -regex ($PSXiViews) {
+        $GroupName {
+            $_ 
+        } 
+    }
     $global:SqlTableName = "$($SqlViewName.Replace('view_',''))"
     # $SqlNotesTableName   = "$($SqlViewName.Replace('view_',''))Notes"
     #endregion Defaults
@@ -34,36 +40,38 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
     )
     #endregion Breadcrumb
 
-    if(Test-Path $global:PodeDB){
+    if (Test-Path $global:PodeDB) {
 
         #region Get data from SQLite
-        $TableExists = foreach($item in $SqlViewName){
+        $TableExists = foreach ($item in $SqlViewName) {
             $SqliteQuery = "SELECT * FROM sqlite_master WHERE name like '$item'"
             Invoke-MySQLiteQuery -Path $global:PodeDB -Query $SqliteQuery
         }
 
-        if([String]::IsNullOrEmpty($TableExists)){
+        if ([String]::IsNullOrEmpty($TableExists)) {
             New-PodeWebCard -Name 'Warning' -Content @(
                 New-PodeWebAlert -Value "Could not find view in $($global:PodeDB)" -Type Warning
                 New-PodeWebAlert -Value "Please upload CSV-files for ($($SqlViewName))" -Type Important
             )
             break
-        }else{
+        }
+        else {
             $MySQLiteDB = Open-MySQLiteDB -Path $global:PodeDB
-            if([String]::IsNullOrEmpty($MySQLiteDB)){
+            if ([String]::IsNullOrEmpty($MySQLiteDB)) {
                 New-PodeWebCard -Name 'Warning' -Content @(
                     New-PodeWebAlert -Value "Could not connect to $($global:PodeDB)" -Type Warning
                 )
                 break
-            }else{
-                $i  = 400
+            }
+            else {
+                $i = 400
                 $ii = 400
                 $SqlViewName = $item
                 # $item | Out-Default
-                $SqliteQuery  = "Select * from $($SqlViewName)"
-                $FullDB       = Invoke-MySQLiteQuery -Path $global:PodeDB -Query $SqliteQuery
+                $SqliteQuery = "Select * from $($SqlViewName)"
+                $FullDB = Invoke-MySQLiteQuery -Path $global:PodeDB -Query $SqliteQuery
                 [datetime]$Created = $FullDB.Created | Select-Last 1
-                $VIServer     = $FullDB | Group-Object vCenterServer | Select-Object -ExpandProperty Name
+                $VIServer = $FullDB | Group-Object vCenterServer | Select-Object -ExpandProperty Name
                 $Properties = (Get-PodeConfig).PSXi.vmwDatastoreHeader
             }
         }
@@ -71,11 +79,11 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
 
         New-PodeWebContainer -NoBackground -Content @(
 
-            if($MySQLiteDB){
+            if ($MySQLiteDB) {
 
                 #region Summary
                 New-PodeWebCard -Name Summary -DisplayName "Summary of $GroupName Datastores" -Content @(
-                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "  
+                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "
                     New-PodeWebBadge -Colour Green -Value "$($VIServer.Count) vCenter"
                     $TotalCluster = $FullDB | Group-Object DatastoreClusterCluster
                     New-PodeWebBadge -Colour Cyan -Value "$($TotalCluster.Count) Cluster"
@@ -95,30 +103,32 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
                 New-PodeWebLine
 
                 #region tables
-                if($MySQLiteDB){
+                if ($MySQLiteDB) {
                     #region VIServer
-                    foreach($item in $VIServer){
+                    foreach ($item in $VIServer) {
                         $i ++
                         $vCenter = (($item -split '\.')[0]).ToUpper()
                         $VICluster = $FullDB | Where-Object vCenterServer -match $item | Group-Object DatastoreCluster | Select-Object -ExpandProperty Name
-                        
+
                         New-PodeWebCard -Id "VC$($i)" -Name "VC$($i)" -DisplayName "vCenter «$($vCenter)» contains $($VICluster.count) Cluster" -Content @(
-                            foreach($Cluster in $VICluster){
+                            foreach ($Cluster in $VICluster) {
                                 $ii ++
-                            
+
                                 #region Badge
                                 New-PodeWebText -Value "DatastoreCluster «$($Cluster)» contains:" -Style Italics
                                 $Datastores = $FullDB | Where-Object vCenterServer -match $item | Where-Object DatastoreCluster -match $Cluster | Group-Object DatastoreName
                                 New-PodeWebBadge -Colour Blue -Value "$($Datastores.Count) Datastores"
                                 New-PodeWebLine
                                 #endregion Badge
-    
+
                                 #region add table
-                                New-PodeWebTable -Id "Table$($ii)" -Name "VC$($ii)" -DisplayName "DatastoreCluster $($Cluster)" -AsCard -SimpleSort -NoExport -NoRefresh -Click -DataColumn HostName -ClickScriptBlock{
+                                New-PodeWebTable -Id "Table$($ii)" -Name "VC$($ii)" -DisplayName "DatastoreCluster $($Cluster)" -AsCard -SimpleSort -NoExport -NoRefresh -Click -DataColumn HostName -ClickScriptBlock {
                                     param($Properties, $item, $global:PodeDB, $SqlViewName, $Cluster)
                                     $SqliteQuery = "Select * from $($SqlViewName) Where (DatastoreName = '$($WebEvent.Data.Value)')"
                                     $Result = Invoke-MySQLiteQuery -Path $global:PodeDB -Query $SqliteQuery #-As Hashtable | Select-Object -ExpandProperty Values
-                                    foreach($item in $Result){ $Message = "$($Message), $($item)" }
+                                    foreach ($item in $Result) {
+                                        $Message = "$($Message), $($item)" 
+                                    }
                                     Show-PodeWebToast -Title $($WebEvent.Data.Value) -Message $Message.TrimStart(', ') -Duration 900000
                                 } -Compact -ArgumentList @($Properties, $item, $global:PodeDB, $SqlViewName, $Cluster) -ScriptBlock {
                                     param($Properties, $item, $global:PodeDB, $SqlViewName, $Cluster)
@@ -132,12 +142,13 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
                     }
                 }
                 #endregion tables
-                
+
             }
 
         )
-        
-    }else{
+
+    }
+    else {
         New-PodeWebCard -Name 'Warning' -Content @(
             New-PodeWebAlert -Value "Could not find $($global:PodeDB)" -Type Warning
         )

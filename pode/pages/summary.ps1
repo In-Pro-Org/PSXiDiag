@@ -3,10 +3,10 @@
 Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -ScriptBlock {
 
     #region module
-    if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
-        Install-Module -Name mySQLite -Force
-        $Error.Clear()
-    }
+    # if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
+    #     Install-Module -Name mySQLite -Force
+    #     $Error.Clear()
+    # }
     if(-not(Get-Module -Name mySQLite)){ Import-Module -Name mySQLite }
     #endregion
 
@@ -23,14 +23,14 @@ Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -Script
         if(-not([String]::IsNullOrEmpty($TableExists))){
 
             New-PodeWebCard -Name 'Overall Summary' -Content @(
-                
+
                 #region VMware
                 $SqliteQuery = "SELECT COUNT(VIServer) AS 'Total VIServer', SUM(CountOfHosts) AS 'Total Hosts', SUM(CountOfVMs) AS 'Total VMs' FROM cloud_summary"
                 $cloud_summary = Invoke-MySQLiteQuery -Path $PodeDB -Query $SqliteQuery
-    
+
                 $SqliteQuery = "SELECT COUNT(VIServer) AS 'Total VIServer', SUM(CountOfHosts) AS 'Total Hosts', SUM(CountOfVMs) AS 'Total VMs' FROM classic_summary"
                 $classic_summary = Invoke-MySQLiteQuery -Path $PodeDB -Query $SqliteQuery
-                
+
                 $TotalvCenter = $classic_summary.'Total VIServer' + $cloud_summary.'Total VIServer'
                 New-PodeWebBadge -Colour Green -Value "$($TotalvCenter) vCenter"
                 $ESXiHosts = $classic_summary.'Total Hosts' + $cloud_summary.'Total Hosts'
@@ -40,7 +40,7 @@ Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -Script
                 #region Hyper-V
                 $SqliteQuery = "SELECT COUNT(VIServer) AS 'Total VIServer', SUM(CountOfHosts) AS 'Total Hosts', SUM(CountOfVMs) AS 'Total VMs' FROM hyperv_summary"
                 $hyperv_summary = Invoke-MySQLiteQuery -Path $PodeDB -Query $SqliteQuery
-                
+
                 $SCVMHosts = $hyperv_summary.'Total Hosts'
                 New-PodeWebBadge -Colour Yellow -Value "$($hyperv_summary.'Total VIServer') VMMServer"
                 New-PodeWebBadge -Colour Red -Value "$($SCVMHosts) Hyper-V Hosts"
@@ -124,7 +124,7 @@ Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -Script
                 )
 
             )
-    
+
             # New-PodeWebForm -Id "Form$($i)" -Name "Search for ESXiHost" -AsCard -ShowReset -ArgumentList @($PodeDB) -ScriptBlock {
             #     param($PodeDB)
             #     $SqliteQuery = "Select * from classic_ESXiHosts Where HostName Like '%$($WebEvent.Data.Search)%'"
@@ -138,9 +138,9 @@ Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -Script
             # } -Content @(
             #     New-PodeWebTextbox -Id "Search$($i)" -Name 'Search' -DisplayName 'HostName' -Type Text -NoForm -Width '1000px'
             # )
-    
+
             New-PodeWebGrid -Cells @(
-    
+
                 if(Test-Path $PodeDB){
                     $SqlTableName = 'classic_summary', 'cloud_summary', 'hyperv_summary'
                     $Properties   = @('VIServer', 'Hosts', 'VMs')
@@ -164,7 +164,7 @@ Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -Script
                                 $summary = Invoke-MySQLiteQuery -Path $PodeDB -Query $SqliteQuery
                             }
                         }
-    
+
                         New-PodeWebCell -Width '30%' -Content @(
 
                             New-PodeWebCard  -Id "Chart$($i)" -Name "Chart$($i)" -DisplayName "$($DisplayName) Summary" -Content @(
@@ -186,10 +186,10 @@ Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -Script
                                 New-PodeWebTable -Id "Table$($i)" -Name "Summary$($i)" -DisplayName "$($DisplayName) Summary" -SimpleSort -Click -NoExport -NoRefresh -Compact -ArgumentList @($PodeDB,$SqliteQuery,$Properties) -ScriptBlock {
                                     param($PodeDB,$SqliteQuery,$Properties)
                                     Invoke-MySQLiteQuery -Path $PodeDB -Query $SqliteQuery | Select-Object $Properties
-                                }                     
+                                }
 
                             )
-    
+
                         )
                     }
                 }
@@ -201,7 +201,7 @@ Add-PodeWebPage -Name 'Summary' -Title 'Summary' -Icon 'clipboard-check' -Script
                 #New-PodeWebAlert -Value 'And restart the server' -Type Important
             )
         }
-    
+
     }else{
         New-PodeWebCard -Name 'Warning' -Content @(
             New-PodeWebAlert -Value "Could not find $($PodeDB)" -Type Warning

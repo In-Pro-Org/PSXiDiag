@@ -11,10 +11,10 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
     param($GroupName, $PageName, $PageTitle)
 
     #region module
-    if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
-        Install-Module -Name mySQLite -Force
-        $Error.Clear()
-    }
+    # if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
+    #     Install-Module -Name mySQLite -Force
+    #     $Error.Clear()
+    # }
     if(-not(Get-Module -Name mySQLite)){ Import-Module -Name mySQLite }
     #endregion
 
@@ -26,7 +26,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
     $global:SqlTableName = "$($SqlViewName.Replace('view_',''))"
     $SqlNotesTableName   = "$($SqlViewName.Replace('view_',''))Notes"
     #endregion Defaults
-    
+
     #region Breadcrumb
     Set-PodeWebBreadcrumb -Items @(
         New-PodeWebBreadcrumbItem -Name 'Home' -Url '/'
@@ -56,7 +56,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
                 )
                 break
             }else{
-                $i  = 100 
+                $i  = 100
                 $ii = 100
                 $SqlViewName = $item
                 $SqliteQuery  = "Select * from $($SqlViewName)"
@@ -74,7 +74,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
 
                 #region Summary
                 New-PodeWebCard -Name Summary -DisplayName "Summary of $GroupName ESXiHosts" -Content @(
-                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "  
+                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "
                     New-PodeWebBadge -Colour Green -Value "$($VIServer.Count) vCenter"
                     $TotalCluster = $FullDB | Group-Object Cluster
                     New-PodeWebBadge -Colour Cyan -Value "$($TotalCluster.Count) Cluster"
@@ -170,7 +170,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
             )
 
             New-PodeWebLine
-            
+
             #region tables
             if($MySQLiteDB){
                 #region VIServer
@@ -185,7 +185,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
                         foreach($Cluster in $VICluster){
                             $ii ++
 
-                            #region Badge 
+                            #region Badge
                             New-PodeWebText -Value "Cluster «$($Cluster)» contains:" -Style Italics
                             #New-PodeWebBadge -Colour Light -Value "$($Cluster)"
                             $ESXiHosts = $FullDB | Where-Object vCenterServer -match $item | Where-Object Cluster -match $Cluster | Group-Object HostName
@@ -221,12 +221,12 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'se
                             #endregion add table
 
                         }
-                    ) 
+                    )
                 }
                 #endregion VIServer
             }
             #endregion tables
-            
+
         )
 
     }else{

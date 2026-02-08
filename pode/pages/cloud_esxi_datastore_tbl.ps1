@@ -11,13 +11,13 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
     param($GroupName, $PageName, $PageTitle)
 
     #region module
-    if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
-        Install-Module -Name mySQLite -Force
-        $Error.Clear()
-    }
+    # if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
+    #     Install-Module -Name mySQLite -Force
+    #     $Error.Clear()
+    # }
     if(-not(Get-Module -Name mySQLite)){ Import-Module -Name mySQLite }
     #endregion
-    
+
     #region Defaults
     $PodeRoot            = $($PSScriptRoot).Replace('pages','db')
     $global:PodeDB       = Join-Path $PodeRoot -ChildPath 'psxi.db'
@@ -75,7 +75,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
 
                 #region Summary
                 New-PodeWebCard -Name Summary -DisplayName "Summary of $GroupName Datastores" -Content @(
-                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "  
+                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "
                     New-PodeWebBadge -Colour Green -Value "$($VIServer.Count) vCenter"
                     $TotalCluster = $FullDB | Group-Object DatastoreClusterCluster
                     New-PodeWebBadge -Colour Cyan -Value "$($TotalCluster.Count) Cluster"
@@ -107,9 +107,9 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
                         $i ++
                         $vCenter = (($item -split '\.')[0]).ToUpper()
                         $VICluster = $FullDB | Where-Object vCenterServer -match $item | Group-Object DatastoreCluster | Select-Object -ExpandProperty Name
-                        
+
                         New-PodeWebTab -Id "Tab$($i)" -Name "vCenter $($vCenter)" -Layouts @(
-                            
+
                             #region Badge
                             New-PodeWebCard -NoTitle -NoHide -Content @(
                                 New-PodeWebText -Value "vCenter «$($vCenter)» contains:" -Style Bold
@@ -119,7 +119,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
 
                             foreach($Cluster in $VICluster){
                                 $ii ++
-    
+
                                 #region Badge
                                 New-PodeWebParagraph -Elements @(
                                     New-PodeWebText -Value "Cluster «$($Cluster)» contains:" -Style Italics
@@ -150,7 +150,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
             )
         }
         #endregion tables
-        
+
     }else{
         New-PodeWebCard -Name 'Warning' -Content @(
             New-PodeWebAlert -Value "Could not find $($global:PodeDB)" -Type Warning

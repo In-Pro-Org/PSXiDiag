@@ -11,10 +11,10 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
     param($GroupName, $PageName, $PageTitle)
 
     #region module
-    if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
-        Install-Module -Name mySQLite -Force
-        $Error.Clear()
-    }
+    # if(-not(Get-InstalledModule -Name mySQLite -ea SilentlyContinue)){
+    #     Install-Module -Name mySQLite -Force
+    #     $Error.Clear()
+    # }
     if(-not(Get-Module -Name mySQLite)){ Import-Module -Name mySQLite }
     #endregion
 
@@ -27,7 +27,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
     $global:SqlTableName = "$($SqlViewName.Replace('view_',''))"
     $SqlNotesTableName   = "$($SqlViewName.Replace('view_',''))Notes"
     #endregion Defaults
-    
+
     #region Breadcrumb
     Set-PodeWebBreadcrumb -Items @(
         New-PodeWebBreadcrumbItem -Name 'Home' -Url '/'
@@ -68,14 +68,14 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
             }
         }
         #endregion Get data from SQLite
-        
+
         New-PodeWebContainer -NoBackground -Content @(
 
             if($MySQLiteDB){
 
                 #region Summary
                 New-PodeWebCard -Name Summary -DisplayName "Summary of $GroupName Hosts" -Content @(
-                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "  
+                    New-PodeWebText -Value "Last update: $(Get-Date $Created -f 'yyyy-MM-dd HH:mm:ss') "
                     New-PodeWebBadge -Colour Green -Value "$($VMMServer.Count) VMMServer"
                     $TotalCluster = $FullDB | Group-Object Cluster
                     New-PodeWebBadge -Colour Cyan -Value "$($TotalCluster.Count) Cluster"
@@ -95,7 +95,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
                     }
                 )
                 #endregion Summary
-                
+
                 #region Search
                 New-PodeWebForm -Id "Form$($GroupName)" -Name "Search for Host" -AsCard -ShowReset -ArgumentList @($Properties, $global:PodeDB, $SqlViewName) -ScriptBlock {
                     param($Properties, $global:PodeDB, $SqlViewName)
@@ -171,7 +171,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
             )
 
         )
-        
+
         #region tables
         if($MySQLiteDB){
             New-PodeWebContainer -NoBackground -Content @(
@@ -182,7 +182,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
 
                         $i ++
                         $SCVMHosts = $FullDB | Where-Object Cluster -match $Cluster | Group-Object HostName
-                        
+
                         New-PodeWebTab -Id "Tab$($i)" -Name "Cluster $($Cluster)" -Layouts @(
 
                             #region Badge
@@ -202,7 +202,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
                                 }
                             )
                             #endregion Badge
-                            
+
                             #region add table
                             New-PodeWebTable -Id "Table$($i)" -Name "VC$($i)" -DisplayName "Cluster $($Cluster)" -AsCard -SimpleSort -NoExport -NoRefresh -Click -DataColumn HostName -ClickScriptBlock{
                                 param($Properties, $item, $global:PodeDB, $SqlViewName, $Cluster)
@@ -224,7 +224,7 @@ Add-PodeWebPage -Group $($GroupName) -Name $PageName -Title $PageTitle -Icon 'cl
             )
         }
         #endregion tables
-        
+
     }else{
         New-PodeWebCard -Name 'Warning' -Content @(
             New-PodeWebAlert -Value "Could not find $($global:PodeDB)" -Type Warning
