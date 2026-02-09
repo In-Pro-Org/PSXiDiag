@@ -29,19 +29,19 @@
 
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [Object]$InputObject,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [String]$Title,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [Switch]$Html,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [Switch]$Pshtml,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory = $false)]
     [Switch]$DrawIo
 )
 
@@ -51,23 +51,33 @@ enum OSType {
     Windows
 }
 
-if($PSVersionTable.PSVersion.Major -lt 6){
+if ($PSVersionTable.PSVersion.Major -lt 6) {
     $CurrentOS = [OSType]::Windows
-}else{
-    if($IsMacOS)  {$CurrentOS = [OSType]::Mac}
-    if($IsLinux)  {$CurrentOS = [OSType]::Linux}
-    if($IsWindows){$CurrentOS = [OSType]::Windows}
+}
+else {
+    if ($IsMacOS) {
+        $CurrentOS = [OSType]::Mac
+    }
+    if ($IsLinux) {
+        $CurrentOS = [OSType]::Linux
+    }
+    if ($IsWindows) {
+        $CurrentOS = [OSType]::Windows
+    }
 }
 
 Write-Host "Running Scrip:", $MyInvocation.MyCommand, "on $($CurrentOS)" -ForegroundColor Green
 
-if($Html){
+if ($Html) {
     $CommandToExecute = $(Join-Path -Path $PSScriptRoot -ChildPath 'New-HtmlVCSADiagram.ps1')
-}elseif($Pshtml){
+}
+elseif ($Pshtml) {
     $CommandToExecute = $(Join-Path -Path $PSScriptRoot -ChildPath 'New-PshtmlVCSADiagram.ps1')
-}elseif($DrawIo){
+}
+elseif ($DrawIo) {
     $CommandToExecute = $(Join-Path -Path $PSScriptRoot -ChildPath 'New-DrawIOVCSACsv.ps1')
-}else{
+}
+else {
     $CommandToExecute = $(Join-Path -Path $PSScriptRoot -ChildPath 'New-MarkdownVCSADiagram.ps1')
 }
 
