@@ -142,11 +142,13 @@ function Invoke-FileWatcher {
 
         switch ($FileEvent.Type) {
             'Changed' {
+
                 # Test if the extension is csv
                 if ($FileEvent.Name -match '\.csv') {
                     $DBRoot = Join-Path $($PSScriptRoot).Replace('bin', 'pode') -ChildPath 'db'
                     $DBFullPath = Join-Path $DBRoot -ChildPath 'psxi.db'
                     $TableName = ($FileEvent.Name) -replace '.csv'
+
                     if (Test-Path $DBFullPath) {
                         if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                             "Database-Check: Database $DBFullPath already exists" | Out-PodeHost
@@ -154,6 +156,7 @@ function Invoke-FileWatcher {
 
                         # Read header from csv-file and set it as column-names to the table
                         $th = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
+
                         if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                             "Table header: $($th)" | Out-Default
                             "Table-Check: Ovewrite the Table $($TableName) if its already exists" | Out-PodeHost
@@ -225,12 +228,14 @@ function Invoke-FileWatcher {
                                 }
 
                                 $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
+
                                 if ($theader -match '"') {
                                     $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';') -Replace '"'
                                 }
 
                                 # Create table for Notes
                                 $TableExists = Invoke-MySQLiteQuery -Path $DBFullPath -query "SELECT * FROM sqlite_master WHERE type = 'table' AND name like '$($TableName)Notes'"
+
                                 if ([string]::IsNullOrEmpty($TableExists)) {
                                     Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE TABLE '$($TableName)Notes'(
                                         ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -241,6 +246,7 @@ function Invoke-FileWatcher {
 
                                 # Create views
                                 $ViewExists = Invoke-MySQLiteQuery -Path $DBFullPath -query "SELECT * FROM sqlite_master WHERE type = 'view' AND name like 'view_$($TableName)'"
+
                                 if ([string]::IsNullOrEmpty($ViewExists)) {
                                     Invoke-MySQLiteQuery -Path $DBFullPath -query "CREATE VIEW 'view_$($TableName)' AS
                                     SELECT
@@ -262,9 +268,11 @@ function Invoke-FileWatcher {
 
                                 Update-ESXiHostTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName -TableHeader $theader
                                 Invoke-PshtmlESXiDiagram -DBFile $($DBFullPath) -ScriptFile $(Join-Path $PSScriptRoot -ChildPath "New-PshtmlESXiDiag.ps1") -SqlTableName $TableName
+
                                 if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
+
                                 Remove-Item -Path $FileEvent.FullPath -Force
                                 $theader = $null
                             }
@@ -281,9 +289,11 @@ function Invoke-FileWatcher {
                                 }
 
                                 Update-DatastoreTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName -TableHeader $theader
+
                                 if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
+
                                 Remove-Item -Path $FileEvent.FullPath -Force
                                 $theader = $null
                             }
@@ -295,6 +305,7 @@ function Invoke-FileWatcher {
                                 }
 
                                 $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';')
+
                                 if ($theader -match '"') {
                                     $theader = (Get-Content -Path $FileEvent.FullPath -Encoding utf8 -TotalCount 1).Split(';') -Replace '"'
                                 }
@@ -303,6 +314,7 @@ function Invoke-FileWatcher {
                                 if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
+
                                 Remove-Item -Path $FileEvent.FullPath -Force
                                 $theader = $null
                             }
@@ -312,10 +324,13 @@ function Invoke-FileWatcher {
                                     "Item received: $($FileEvent.FullPath)" | Out-PodeHost
                                     "Table-Check: Add content 'Summary' to the table $TableName" | Out-PodeHost
                                 }
+
                                 Update-SummaryTable -CSVFile $FileEvent.FullPath -DBFile $DBFullPath -SqlTableName $TableName
+
                                 if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                                     "Remove item: $($FileEvent.FullPath)" | Out-PodeHost
                                 }
+
                                 Remove-Item -Path $FileEvent.FullPath -Force
                             }
                         }
@@ -488,32 +503,42 @@ function Update-ESXiHostTable {
 
     #region add or merge Notes, Master is the Notes-Table
     $ESXiHosts = Invoke-MySQLiteQuery -Path $DBFile.FullName -Query "SELECT HostName, Notes FROM '$($SqlTableName)' WHERE Notes >''"
+
     foreach ($esxi in $ESXiHosts) {
+
         if ((Get-PodeConfig).DebugLevel -eq 'Info') {
             "$($SqlTableName): found Notes for $($esxi.HostName) = $($esxi.Notes)" | Out-Default
         }
+
         $ESXiHostsNotes = Invoke-MySQLiteQuery -Path $DBFile.FullName -Query "SELECT HostName, Notes FROM '$($SqlTableName)Notes' WHERE HostName = '$($esxi.HostName)'"
+
         if ([String]::IsNullOrEmpty($ESXiHostsNotes)) {
             if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                 "$($SqlTableName)Notes: no Notes for $($esxi.HostName), insert into" | Out-Default
             }
+
             $InsertNotes = $($esxi.Notes).Trim()
             # No Notes found, insert into table
             $SqliteQuery = "INSERT INTO '$($SqlTableName)Notes' (HostName, Notes) VALUES ('$($esxi.HostName)', '$($InsertNotes)')"
+
             Invoke-MySQLiteQuery -Path $DBFile.FullName -Query $SqliteQuery
         }
         else {
+
             # Notes found for one or more Hosts
             foreach ($item in $ESXiHostsNotes) {
+
                 if ((Get-PodeConfig).DebugLevel -eq 'Info') {
                     "$($SqlTableName)Notes: found Notes for $($item.HostName) = $($item.Notes), update" | Out-Default
                 }
+
                 if ($($item.Notes) -match $($esxi.Notes)) {
                     $MergedNotes = $($item.Notes).Trim()
                 }
                 else {
                     $MergedNotes = $("$($item.Notes), from CSV: $($esxi.Notes)").Trim()
                 }
+
                 # Notes found, update table
                 $SqliteQuery = "UPDATE '$($SqlTableName)Notes' SET Notes='$($MergedNotes)' WHERE HostName = '$($esxi.HostName)'"
                 Invoke-MySQLiteQuery -Path $DBFile.FullName -Query $SqliteQuery
@@ -706,10 +731,12 @@ function New-SqlLiteDB {
     )
 
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ Begin   ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
+
     if (-not(Test-Path $DBFile.FullName)) {
         Write-Verbose "Create new database $($DBFile.BaseName)" #| Out-Default
         New-MySQLiteDB $DBFile.FullName -Comment "This is the PSXi Database" -PassThru -force
     }
+    
     Write-Verbose $('[', (Get-Date -f 'yyyy-MM-dd HH:mm:ss.fff'), ']', '[ End     ]', "$($MyInvocation.MyCommand.Name)" -Join ' ')
 }
 
